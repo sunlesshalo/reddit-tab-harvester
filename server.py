@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Tab Harvester — Local server that fetches Reddit content and runs Claude analysis."""
 
+import html as html_mod
 import json
 import os
 import re
@@ -274,6 +275,17 @@ def merge_analysis_with_content(analysis, fetched_posts):
     return merged
 
 
+def _esc(text):
+    """Escape HTML entities in user-sourced content."""
+    return html_mod.escape(str(text)) if text else ""
+
+
+def _safe_url(url):
+    """Only allow http/https URLs."""
+    url = str(url or "")
+    return url if url.startswith(("http://", "https://")) else "#"
+
+
 def build_digest_html(analysis, fetched_posts, post_count, timestamp):
     """Build digest HTML. Merges Claude's analysis with fetched content."""
     summary = analysis.get("summary", [])
@@ -284,39 +296,39 @@ def build_digest_html(analysis, fetched_posts, post_count, timestamp):
     for p in posts:
         categories.setdefault(p["category"], []).append(p)
 
-    summary_html = "".join(f"<li>{s}</li>" for s in summary)
+    summary_html = "".join(f"<li>{_esc(s)}</li>" for s in summary)
 
     quick_scan = ""
     for cat, cat_posts in categories.items():
         items = "".join(
-            f'<li><strong>{p["title"]}</strong> '
-            f'<span class="meta">r/{p["subreddit"]} · {p["score"]} pts</span>'
-            f'<br><span class="one-liner">{p["one_liner"]}</span></li>'
+            f'<li><strong>{_esc(p["title"])}</strong> '
+            f'<span class="meta">r/{_esc(p["subreddit"])} · {p["score"]} pts</span>'
+            f'<br><span class="one-liner">{_esc(p["one_liner"])}</span></li>'
             for p in cat_posts
         )
-        quick_scan += f"<h3>{cat} ({len(cat_posts)})</h3><ul>{items}</ul>"
+        quick_scan += f"<h3>{_esc(cat)} ({len(cat_posts)})</h3><ul>{items}</ul>"
 
     deep_read = ""
     for i, p in enumerate(posts):
         if p.get("top_comments"):
             comments = "".join(
-                f"<li><strong>[{c['score']} pts]</strong> u/{c['author']}: {c['body'][:600]}</li>"
+                f"<li><strong>[{c['score']} pts]</strong> u/{_esc(c['author'])}: {_esc(c['body'][:600])}</li>"
                 for c in p["top_comments"]
             )
         else:
             comments = "<li>No comments captured</li>"
 
-        full_text = (p.get("selftext") or "No content").replace("\n", "<br>")
+        full_text = _esc(p.get("selftext") or "No content").replace("\n", "<br>")
         deep_read += f"""
         <div class="post" id="post-{i}">
-            <h3>{p["title"]}</h3>
+            <h3>{_esc(p["title"])}</h3>
             <div class="meta">
-                <a href="{p['url']}" target="_blank">Source</a> ·
-                r/{p["subreddit"]} · {p["score"]} pts ·
+                <a href="{_safe_url(p['url'])}" target="_blank">Source</a> ·
+                r/{_esc(p["subreddit"])} · {p["score"]} pts ·
                 {p["num_comments"]} comments ·
                 Relevance: {p["relevance"]}/5
             </div>
-            <p class="one-liner">{p["one_liner"]}</p>
+            <p class="one-liner">{_esc(p["one_liner"])}</p>
             <details>
                 <summary>Full post + comments</summary>
                 <div class="full-text">{full_text}</div>
@@ -326,7 +338,7 @@ def build_digest_html(analysis, fetched_posts, post_count, timestamp):
         </div>"""
 
     if "raw_text" in analysis:
-        raw = analysis["raw_text"].replace("\n", "<br>")
+        raw = _esc(analysis["raw_text"]).replace("\n", "<br>")
         quick_scan = f"<div class='raw'>{raw}</div>"
         deep_read = ""
 
@@ -374,7 +386,7 @@ def build_digest_html(analysis, fetched_posts, post_count, timestamp):
 
 def build_knowledge_html(posts):
     """Build the consolidated knowledge base page with filtering and dismiss."""
-    posts_json = json.dumps(posts)
+    posts_json = json.dumps(posts).replace("</", r"<\/")
     count = len(posts)
 
     return f"""<!DOCTYPE html>
@@ -553,11 +565,18 @@ renderPosts();
 
 
 class HarvestHandler(BaseHTTPRequestHandler):
+    def _cors_origin(self):
+        """Return allowed CORS origin — Chrome extensions and localhost only."""
+        origin = self.headers.get("Origin", "")
+        if origin.startswith("chrome-extension://") or origin.startswith("http://localhost"):
+            return origin
+        return "http://localhost:7777"
+
     def _send_json(self, data, status=200):
         body = json.dumps(data).encode()
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", self._cors_origin())
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -566,7 +585,7 @@ class HarvestHandler(BaseHTTPRequestHandler):
         body = html.encode()
         self.send_response(status)
         self.send_header("Content-Type", "text/html")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", self._cors_origin())
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
@@ -579,7 +598,7 @@ class HarvestHandler(BaseHTTPRequestHandler):
 
     def do_OPTIONS(self):
         self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", self._cors_origin())
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
@@ -589,8 +608,8 @@ class HarvestHandler(BaseHTTPRequestHandler):
             self._send_json({"ok": True})
         elif self.path.startswith("/digest/"):
             filename = self.path.split("/digest/", 1)[1]
-            filepath = DATA_DIR / filename
-            if filepath.exists() and filepath.suffix == ".html":
+            filepath = (DATA_DIR / filename).resolve()
+            if filepath.parent == DATA_DIR.resolve() and filepath.exists() and filepath.suffix == ".html":
                 self._send_html(filepath.read_text())
             else:
                 self._send_json({"error": "not found"}, 404)
@@ -676,7 +695,7 @@ class HarvestHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", "text/event-stream")
         self.send_header("Cache-Control", "no-cache")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", self._cors_origin())
         self.end_headers()
 
         self._send_sse("start", {"total": len(urls)})
