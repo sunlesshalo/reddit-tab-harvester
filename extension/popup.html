@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { width: 320px; font-family: -apple-system, system-ui, sans-serif; background: #1a1a2e; color: #e0e0e0; padding: 16px; }
+  h1 { font-size: 16px; color: #ff6b35; margin-bottom: 12px; }
+  .count { font-size: 28px; font-weight: bold; color: #fff; text-align: center; margin: 12px 0; }
+  .count span { color: #ff6b35; }
+  .label { text-align: center; color: #888; font-size: 13px; margin-bottom: 16px; }
+  button { width: 100%; padding: 12px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; margin-bottom: 8px; transition: opacity 0.2s; }
+  button:hover { opacity: 0.9; }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+  #harvest-btn { background: #ff6b35; color: white; }
+  #close-btn { background: #333; color: #ccc; display: none; }
+  #kb-btn { background: transparent; border: 1px solid #444; color: #4ecdc4; padding: 8px; font-size: 13px; }
+  #kb-btn:hover { border-color: #4ecdc4; }
+  .status { text-align: center; color: #4ecdc4; font-size: 13px; margin: 8px 0; min-height: 18px; }
+  .error { color: #ff4444; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #4ecdc4; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: middle; margin-right: 6px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .server-down { background: #2a1a1a; border: 1px solid #ff4444; border-radius: 6px; padding: 10px; font-size: 12px; color: #ff8888; margin-top: 8px; }
+  .server-down code { color: #4ecdc4; }
+  .progress-bar { display: none; height: 6px; background: #333; border-radius: 3px; margin: 10px 0; overflow: hidden; }
+  .progress-bar .fill { height: 100%; background: #4ecdc4; border-radius: 3px; width: 0%; transition: width 0.3s ease; }
+</style>
+</head>
+<body>
+  <h1>Tab Harvester</h1>
+  <div class="count"><span id="tab-count">—</span></div>
+  <div class="label">Reddit tabs found</div>
+  <div class="status" id="status"></div>
+  <div class="progress-bar" id="progress-bar"><div class="fill"></div></div>
+  <button id="harvest-btn" disabled>Harvest</button>
+  <button id="close-btn">Close Harvested Tabs</button>
+  <button id="kb-btn">Knowledge Base</button>
+  <div id="server-warning" class="server-down" style="display:none">
+    Server not running. Start it with:<br>
+    <code>python3 server.py</code>
+  </div>
+  <script src="popup.js"></script>
+</body>
+</html>

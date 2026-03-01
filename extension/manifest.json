@@ -1,0 +1,17 @@
+{
+  "manifest_version": 3,
+  "name": "Tab Harvester",
+  "version": "1.0",
+  "description": "One-click Reddit tab harvesting — categorize, summarize, close.",
+  "permissions": ["tabs"],
+  "host_permissions": ["http://localhost:7777/*"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": "icon.png"
+  },
+  "icons": {
+    "16": "icon.png",
+    "48": "icon.png",
+    "128": "icon.png"
+  }
+}

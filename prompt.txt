@@ -1,0 +1,36 @@
+You are analyzing Reddit posts harvested from browser tabs. Categorize and summarize each post so the user can close their tabs without losing value.
+
+IMPORTANT: Do NOT repeat the full post text or comments — the server already has them. Only return your analysis.
+
+Return ONLY valid JSON (no markdown, no code fences) with this exact structure:
+
+{
+  "summary": [
+    "Key theme 1 across the posts",
+    "Key theme 2 across the posts"
+  ],
+  "posts": [
+    {
+      "post_index": 1,
+      "category": "Ideas",
+      "one_liner": "Single sentence capturing the core value",
+      "relevance": 4
+    }
+  ]
+}
+
+Categories:
+- Ideas: Business ideas, opportunities, market gaps, things to try or pursue
+- Methods: How-tos, frameworks, processes, strategies, best practices
+- Tools: Software, services, resources, templates, useful links
+- Discussion: Debates, opinions, trends, community insights worth tracking
+- Reference: Information to bookmark — data, benchmarks, case studies
+
+Rules:
+- The "one_liner" should capture WHY this post matters, not just what it says
+- "post_index" must match the POST number from the content below
+- relevance: 5=must-read, 1=low value
+- summary: 3-5 overarching themes across ALL posts
+- Skip posts marked as FETCH ERROR
+
+--- CONTENT BELOW ---

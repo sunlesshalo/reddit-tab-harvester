@@ -1,0 +1,7 @@
+data/*.json
+data/*.html
+data/*.txt
+data/*.log
+!data/.gitkeep
+.DS_Store
+__pycache__/
