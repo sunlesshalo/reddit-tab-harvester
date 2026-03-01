@@ -2,7 +2,7 @@
 
 One-click Chrome extension that harvests your open Reddit tabs, categorizes content with AI, and builds a searchable knowledge base.
 
-**Zero API costs** — uses your existing [Claude Code](https://docs.anthropic.com/en/docs/claude-code) subscription via the `claude` CLI.
+Uses the [Anthropic API](https://console.anthropic.com/) (Claude Haiku) for fast, lightweight analysis. Python stdlib only — no pip install needed.
 
 ## What it does
 
@@ -16,20 +16,20 @@ One-click Chrome extension that harvests your open Reddit tabs, categorizes cont
 ```
 Chrome Extension  ──POST urls──►  Local Python Server (localhost:7777)
                                     ├── Fetches Reddit .json API (parallel)
-                                    ├── Sends to Claude CLI for analysis
+                                    ├── Sends to Anthropic API for analysis
                                     ├── Builds HTML digest
                                     └── Appends to Knowledge Base
 ```
 
 - **Reddit .json API** — no auth needed, appends `.json` to any Reddit URL
-- **Claude CLI** (`claude -p --model haiku`) — categorizes, summarizes, scores relevance
+- **Anthropic API** (Claude Haiku) — categorizes, summarizes, scores relevance
 - **Knowledge Base** — all posts across sessions in one filterable page at `localhost:7777/knowledge`
 
 ## Requirements
 
 - **macOS** (uses launchd for auto-start; server works on any OS but `install.sh` is macOS-specific)
 - **Python 3.6+** (stdlib only, no pip install needed)
-- **Claude Code** installed and authenticated (`claude` CLI must be in your PATH)
+- **Anthropic API key** — get one at [console.anthropic.com](https://console.anthropic.com/)
 - **Google Chrome**
 
 ## Install
@@ -37,6 +37,17 @@ Chrome Extension  ──POST urls──►  Local Python Server (localhost:7777)
 ```bash
 git clone https://github.com/sunlesshalo/reddit-tab-harvester.git
 cd reddit-tab-harvester
+```
+
+Set your API key:
+
+```bash
+export ANTHROPIC_API_KEY="sk-ant-..."
+```
+
+Run the installer:
+
+```bash
 bash install.sh
 ```
 
@@ -73,7 +84,7 @@ Features:
 
 ### Categories
 
-Claude assigns each post to one of:
+Each post is assigned to one of:
 
 | Category | What it captures |
 |----------|-----------------|
@@ -88,7 +99,7 @@ Claude assigns each post to one of:
 ```
 reddit-tab-harvester/
 ├── server.py           # Python server (stdlib only) — all backend logic
-├── prompt.txt          # Static analysis prompt for Claude
+├── prompt.txt          # Static analysis prompt
 ├── install.sh          # macOS setup: launchd + instructions
 ├── extension/
 │   ├── manifest.json   # Chrome Manifest V3
@@ -112,9 +123,9 @@ reddit-tab-harvester/
 
 ## How the analysis works
 
-The server sends fetched Reddit content + a static prompt to Claude (Haiku model) and asks for **analysis only** — categories, one-liners, and relevance scores. Claude does not echo back the full content, which keeps responses fast (~5 seconds for analysis).
+The server sends fetched Reddit content + a static prompt to the Anthropic API (Claude Haiku) and asks for **analysis only** — categories, one-liners, and relevance scores. The model does not echo back the full content, which keeps responses fast (~5 seconds for analysis).
 
-The server then merges Claude's analysis with the already-fetched content to build the final digest. This design keeps processing under 20 seconds for 10+ tabs.
+The server then merges the analysis with the already-fetched content to build the final digest. This design keeps processing under 20 seconds for 10+ tabs.
 
 ## License
 

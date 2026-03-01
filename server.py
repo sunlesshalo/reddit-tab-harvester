@@ -5,7 +5,6 @@ import html as html_mod
 import json
 import os
 import re
-import subprocess
 import time
 import urllib.request
 import urllib.error
@@ -206,30 +205,35 @@ def strip_code_fences(text):
 
 
 def run_claude(prompt_text):
-    """Run claude CLI in print mode and return the output."""
+    """Call Anthropic API directly with the prompt text."""
+    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    if not api_key:
+        return {"error": "ANTHROPIC_API_KEY not set. Get one at https://console.anthropic.com/"}
+
     try:
-        print(f"[claude] Sending {len(prompt_text)} chars to claude -p (haiku)...")
-        result = subprocess.run(
-            ["claude", "-p", "--output-format", "json", "--model", "haiku"],
-            input=prompt_text,
-            capture_output=True,
-            text=True,
-            timeout=300,
-            cwd="/tmp",
+        print(f"[claude] Sending {len(prompt_text)} chars to Anthropic API (haiku)...")
+        body = json.dumps({
+            "model": "claude-haiku-4-5-20251001",
+            "max_tokens": 4096,
+            "messages": [{"role": "user", "content": prompt_text}],
+        }).encode()
+
+        req = urllib.request.Request(
+            "https://api.anthropic.com/v1/messages",
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+            },
         )
-        if result.returncode != 0:
-            print(f"[claude] ERROR exit {result.returncode}: {result.stderr[:300]}")
-            return {"error": f"claude exited {result.returncode}: {result.stderr[:500]}"}
+        with urllib.request.urlopen(req, timeout=300) as resp:
+            result = json.loads(resp.read().decode())
 
-        debug_path = DATA_DIR / f"debug-claude-{datetime.now().strftime('%H%M%S')}.txt"
-        debug_path.write_text(result.stdout[:5000])
-        print(f"[claude] Response saved to {debug_path}")
-
-        try:
-            wrapper = json.loads(result.stdout)
-            content = wrapper.get("result", result.stdout)
-        except json.JSONDecodeError:
-            content = result.stdout
+        content = ""
+        for block in result.get("content", []):
+            if block.get("type") == "text":
+                content += block["text"]
 
         content = strip_code_fences(content)
         print(f"[claude] After strip: {content[:150]}...")
@@ -241,10 +245,13 @@ def run_claude(prompt_text):
         except json.JSONDecodeError as e:
             print(f"[claude] JSON parse failed: {e}")
             return {"raw_text": content}
-    except subprocess.TimeoutExpired:
-        return {"error": "claude timed out after 5 minutes"}
-    except FileNotFoundError:
-        return {"error": "claude CLI not found — is it installed and in PATH?"}
+    except urllib.error.HTTPError as e:
+        err = e.read().decode()[:500]
+        print(f"[claude] API error {e.code}: {err}")
+        return {"error": f"Anthropic API error {e.code}: {err}"}
+    except Exception as e:
+        print(f"[claude] Error: {e}")
+        return {"error": str(e)}
 
 
 def merge_analysis_with_content(analysis, fetched_posts):

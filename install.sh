@@ -10,6 +10,18 @@ PYTHON3="$(which python3)"
 echo "=== Tab Harvester Setup ==="
 echo ""
 
+# 0. Check for API key
+if [ -z "$ANTHROPIC_API_KEY" ]; then
+    echo "[!!] ANTHROPIC_API_KEY is not set."
+    echo ""
+    echo "Get one at: https://console.anthropic.com/"
+    echo "Then run:   export ANTHROPIC_API_KEY=\"sk-ant-...\""
+    echo "And re-run: bash install.sh"
+    exit 1
+fi
+
+echo "[ok] ANTHROPIC_API_KEY is set"
+
 # 1. Create launchd plist
 cat > "$PLIST_PATH" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -27,6 +39,8 @@ cat > "$PLIST_PATH" << EOF
     <dict>
         <key>PYTHONUNBUFFERED</key>
         <string>1</string>
+        <key>ANTHROPIC_API_KEY</key>
+        <string>${ANTHROPIC_API_KEY}</string>
     </dict>
     <key>RunAtLoad</key>
     <true/>
